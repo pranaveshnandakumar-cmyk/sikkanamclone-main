@@ -118,7 +118,7 @@ export const tnDestinations: TNDestination[] = [
       "Telescope View Point 🔭",
       "Vel Murugan Temple 🛕"
     ],
-    "nearestStation": "Jolarpettai",
+    "nearestStation": "Jolarpettai Junction",
     "hasRailAccess": false,
     "lat": 12.58,
     "lng": 78.64
@@ -164,7 +164,7 @@ export const tnDestinations: TNDestination[] = [
       "Waterfalls (12 total) 💦",
       "Lion-Tailed Macaque Spotting 🐒"
     ],
-    "nearestStation": "Pollachi",
+    "nearestStation": "Pollachi Junction",
     "hasRailAccess": false,
     "lat": 10.32,
     "lng": 76.96
@@ -208,7 +208,7 @@ export const tnDestinations: TNDestination[] = [
       "Dakshinachitra Museum 🎭",
       "Snake Farm (ECR) 🐍"
     ],
-    "nearestStation": "Chengalpattu",
+    "nearestStation": "Chengalpattu Junction",
     "hasRailAccess": false,
     "lat": 12.62,
     "lng": 80.19
@@ -283,7 +283,7 @@ export const tnDestinations: TNDestination[] = [
       "Paradise Beach (Boat) 🏖️",
       "Scuba Diving (Temple Adventures) 🤿"
     ],
-    "nearestStation": "Puducherry",
+    "nearestStation": "Puducherry / Villupuram Junction",
     "hasRailAccess": true,
     "lat": 11.93,
     "lng": 79.83
@@ -378,7 +378,7 @@ export const tnDestinations: TNDestination[] = [
       "Sri Shankaracharya Mutt 🕌",
       "Ulagalandha Perumal Temple 🛕"
     ],
-    "nearestStation": "Chengalpattu",
+    "nearestStation": "Chengalpattu Junction",
     "hasRailAccess": true,
     "lat": 12.84,
     "lng": 79.7
@@ -577,7 +577,7 @@ export const tnDestinations: TNDestination[] = [
       "Parambikulam (Kerala side) 🌿",
       "Grass Hills 🏔️"
     ],
-    "nearestStation": "Pollachi",
+    "nearestStation": "Pollachi Junction",
     "hasRailAccess": false,
     "lat": 10.45,
     "lng": 76.81
@@ -1289,7 +1289,7 @@ export const tnDestinations: TNDestination[] = [
       "Waterfalls",
       "Nature drives"
     ],
-    "nearestStation": "Trichy Junction",
+    "nearestStation": "Tiruchirappalli Junction",
     "hasRailAccess": false,
     "lat": 11.32,
     "lng": 78.5
@@ -1301,14 +1301,14 @@ export const tnDestinations: TNDestination[] = [
     "category": "wildlife",
     "emoji": "🌿",
     "district": "Dharmapuri",
-    "description": "Train to Dharmapuri, then TNSTC bus to Hogenakkal.",
+    "description": "Train to Salem Junction, then bus to Hogenakkal.",
     "attractions": [
       "Hogenakkal Falls",
       "Coracle ride",
       "Cauvery viewpoints",
       "Oil massage area"
     ],
-    "nearestStation": "Dharmapuri",
+    "nearestStation": "Salem Junction",
     "hasRailAccess": false,
     "lat": 12.11,
     "lng": 77.77
