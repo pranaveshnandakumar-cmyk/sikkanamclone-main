@@ -551,101 +551,109 @@ const TripResults = forwardRef<HTMLDivElement, TripResultsProps>(({ plan, onSele
           </div>
 
           {/* Premium Budget Dashboard */}
-          {plan.intelligence && (
-            <div className="w-full max-w-xl mx-auto space-y-4 pt-2">
-              <div className="bg-card border-2 border-primary/20 p-6 rounded-3xl shadow-elevated space-y-6 relative overflow-hidden backdrop-blur-md bg-opacity-80 text-center">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full filter blur-3xl -z-10" />
-                
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block">Recommended Carry Amount</span>
-                  <h2 className="text-4xl md:text-5xl font-display font-black text-primary">
-                    ₹{plan.intelligence.recommendedCarry.toLocaleString("en-IN")}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Expected Spend + Emergency Buffer
-                  </p>
-                </div>
+          {plan.intelligence && (() => {
+            const bufferMin = plan.intelligence.components.buffer.min;
+            const bufferMax = plan.intelligence.emergencyBuffer;
+            const expectedSpendMin = plan.intelligence.minRequired - bufferMin;
+            const expectedSpendMax = plan.intelligence.expectedSpend;
+            const recommendedCarryMin = plan.intelligence.minRequired;
+            const recommendedCarryMax = plan.intelligence.recommendedCarry;
 
-                <div className="grid grid-cols-2 gap-4 border-t border-b border-border/60 py-4">
-                  <div className="text-center space-y-0.5 border-r border-border/40">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Expected Spend</span>
-                    <p className="text-lg font-extrabold text-foreground">
-                      ₹{plan.intelligence.expectedSpend.toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                  <div className="text-center space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Emergency Buffer</span>
-                    <p className="text-lg font-extrabold text-foreground">
-                      ₹{plan.intelligence.emergencyBuffer.toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 items-center border-t border-border/40 pt-4 w-full">
-                  {(() => {
-                    const { reliability, reason } = getBudgetReliability(plan.intelligence.evidenceChecklist);
-                    const badgeColor = 
-                      reliability === "Very High" ? "bg-emerald-500 text-white" :
-                      reliability === "High" ? "bg-emerald-600/90 text-white" :
-                      reliability === "Moderate" ? "bg-amber-500 text-black" : "bg-destructive text-white";
-                    return (
-                      <div className="w-full space-y-2.5">
-                        <div className="flex items-center justify-between px-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Budget Reliability:</span>
-                            <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${badgeColor}`}>
-                              {reliability}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const el = document.getElementById("transparency-engine");
-                              if (el) el.scrollIntoView({ behavior: "smooth" });
-                            }}
-                            className="text-xs font-bold text-primary hover:underline focus:outline-none"
-                          >
-                            View Calculations ↓
-                          </button>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground font-semibold px-2 text-left">
-                          Reason: {reason}
-                        </p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Grid of Why Carry, Assumptions, and Evidence Checklist */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Card 1: Recommended Carry Explanation */}
-                <div className="bg-muted/40 border border-border/60 rounded-2xl p-4 text-left space-y-3">
-                  <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs">
-                    🛡️ Why Carry ₹{plan.intelligence.recommendedCarry.toLocaleString("en-IN")}?
-                  </h4>
+            return (
+              <div className="w-full max-w-xl mx-auto space-y-4 pt-2">
+                <div className="bg-card border-2 border-primary/20 p-6 rounded-3xl shadow-elevated space-y-6 relative overflow-hidden backdrop-blur-md bg-opacity-80 text-center">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full filter blur-3xl -z-10" />
                   
-                  <div className="space-y-3">
-                    <div className="p-3 bg-card border border-border/60 rounded-xl space-y-1">
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Expected Spend</span>
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block">Recommended Carry Range</span>
+                    <h2 className="text-3xl md:text-4xl font-display font-black text-primary">
+                      ₹{recommendedCarryMin.toLocaleString("en-IN")} - ₹{recommendedCarryMax.toLocaleString("en-IN")}
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Expected Spend + Emergency Buffer Range
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-b border-border/60 py-4">
+                    <div className="text-center space-y-0.5 border-r border-border/40">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Expected Spend Range</span>
                       <p className="text-base font-extrabold text-foreground">
-                        ₹{plan.intelligence.expectedSpend.toLocaleString("en-IN")}
+                        ₹{expectedSpendMin.toLocaleString("en-IN")} - ₹{expectedSpendMax.toLocaleString("en-IN")}
                       </p>
-                      <span className="block text-[9px] text-muted-foreground/80">Includes transport, hotel, food, mobility, and activities.</span>
                     </div>
-                    
-                    <div className="p-3 bg-card border border-border/60 rounded-xl space-y-1">
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Emergency Buffer</span>
+                    <div className="text-center space-y-0.5">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Emergency Buffer Range</span>
                       <p className="text-base font-extrabold text-foreground">
-                        ₹{plan.intelligence.emergencyBuffer.toLocaleString("en-IN")}
+                        ₹{bufferMin.toLocaleString("en-IN")} - ₹{bufferMax.toLocaleString("en-IN")}
                       </p>
-                      <span className="block text-[9px] text-muted-foreground/80">Kept aside for transport delays, extra meals, or shopping.</span>
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-muted-foreground/80 pt-2 border-t border-border/40 leading-relaxed font-semibold">
-                    💡 <span className="text-primary font-bold">Recommended Carry Formulation:</span> Expected spend (₹{plan.intelligence.expectedSpend.toLocaleString("en-IN")}) + emergency buffer (₹{plan.intelligence.emergencyBuffer.toLocaleString("en-IN")}) = ₹{plan.intelligence.recommendedCarry.toLocaleString("en-IN")}.
+                  <div className="flex flex-col gap-2 items-center border-t border-border/40 pt-4 w-full">
+                    {(() => {
+                      const { reliability, reason } = getBudgetReliability(plan.intelligence.evidenceChecklist);
+                      const badgeColor = 
+                        reliability === "Very High" ? "bg-emerald-500 text-white" :
+                        reliability === "High" ? "bg-emerald-600/90 text-white" :
+                        reliability === "Moderate" ? "bg-amber-500 text-black" : "bg-destructive text-white";
+                      return (
+                        <div className="w-full space-y-2.5">
+                          <div className="flex items-center justify-between px-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Budget Reliability:</span>
+                              <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${badgeColor}`}>
+                                {reliability}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const el = document.getElementById("transparency-engine");
+                                if (el) el.scrollIntoView({ behavior: "smooth" });
+                              }}
+                              className="text-xs font-bold text-primary hover:underline focus:outline-none"
+                            >
+                              View Calculations ↓
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-semibold px-2 text-left">
+                            Reason: {reason}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
+
+                {/* Grid of Why Carry, Assumptions, and Evidence Checklist */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Card 1: Recommended Carry Explanation */}
+                  <div className="bg-muted/40 border border-border/60 rounded-2xl p-4 text-left space-y-3">
+                    <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                      🛡️ Why Carry ₹{recommendedCarryMin.toLocaleString("en-IN")} - ₹{recommendedCarryMax.toLocaleString("en-IN")}?
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="p-3 bg-card border border-border/60 rounded-xl space-y-1">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Expected Spend</span>
+                        <p className="text-sm font-extrabold text-foreground">
+                          ₹{expectedSpendMin.toLocaleString("en-IN")} - ₹{expectedSpendMax.toLocaleString("en-IN")}
+                        </p>
+                        <span className="block text-[9px] text-muted-foreground/80">Includes transport, hotel, food, mobility, and activities.</span>
+                      </div>
+                      
+                      <div className="p-3 bg-card border border-border/60 rounded-xl space-y-1">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Emergency Buffer</span>
+                        <p className="text-sm font-extrabold text-foreground">
+                          ₹{bufferMin.toLocaleString("en-IN")} - ₹{bufferMax.toLocaleString("en-IN")}
+                        </p>
+                        <span className="block text-[9px] text-muted-foreground/80">Kept aside for transport delays, extra meals, or shopping.</span>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground/80 pt-2 border-t border-border/40 leading-relaxed font-semibold">
+                      💡 <span className="text-primary font-bold">Recommended Carry Formulation:</span> Expected spend (₹{expectedSpendMin.toLocaleString("en-IN")} - ₹{expectedSpendMax.toLocaleString("en-IN")}) + emergency buffer (₹{bufferMin.toLocaleString("en-IN")} - ₹{bufferMax.toLocaleString("en-IN")}) = ₹{recommendedCarryMin.toLocaleString("en-IN")} - ₹{recommendedCarryMax.toLocaleString("en-IN")}.
+                    </div>
+                  </div>
 
                 {/* Card 2: Budget Assumptions Panel */}
                 <div className="bg-muted/40 border border-border/60 rounded-2xl p-4 text-left space-y-3">
@@ -711,7 +719,8 @@ const TripResults = forwardRef<HTMLDivElement, TripResultsProps>(({ plan, onSele
                 </div>
               </div>
             </div>
-          )}
+          );
+        })()}
         </div>
 
         {/* Share & Actions */}
