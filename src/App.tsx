@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 import AppShell from "./components/AppShell";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
-
+import { Analytics } from "@vercel/analytics/next"
 import Maps from "./pages/Maps";  
 
 const Explore = lazy(() => import("./pages/Explore"));
