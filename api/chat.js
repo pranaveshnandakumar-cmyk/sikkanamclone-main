@@ -130,6 +130,17 @@ export default async function handler(req, res) {
       console.error("Failed to read destinations.json for RAG:", err);
     }
 
+    // Load local tourism assets database (compiled from official booklets)
+    const assetsFilePath = path.join(process.cwd(), "api", "tourism_assets.json");
+    let tourismAssets = [];
+    try {
+      if (fs.existsSync(assetsFilePath)) {
+        tourismAssets = JSON.parse(fs.readFileSync(assetsFilePath, "utf8"));
+      }
+    } catch (err) {
+      console.error("Failed to read tourism_assets.json for RAG:", err);
+    }
+
     // RAG Retrieval logic: Search for matching destinations or categories in query
     const matchedDestinations = [];
     const queryLower = normalizedQuery;
@@ -162,6 +173,36 @@ export default async function handler(req, res) {
       }
     }
 
+    // RAG Retrieval for specific assets (beaches, eco, heritage, culinary)
+    const matchedAssets = [];
+    if (tourismAssets.length > 0) {
+      for (const asset of tourismAssets) {
+        const titleLower = asset.title.toLowerCase();
+        if (queryLower.includes(titleLower) && matchedAssets.length < 5) {
+          matchedAssets.push(asset);
+        }
+      }
+      
+      // Fallback: category/keyword matching if not enough specific assets matched
+      if (matchedAssets.length < 3) {
+        let keyword = null;
+        if (queryLower.includes("beach") || queryLower.includes("coast")) {
+          keyword = "beach";
+        } else if (queryLower.includes("eco") || queryLower.includes("trek") || queryLower.includes("safari") || queryLower.includes("wildlife") || queryLower.includes("nature")) {
+          keyword = "eco";
+        } else if (queryLower.includes("heritage") || queryLower.includes("temple") || queryLower.includes("palace") || queryLower.includes("fort")) {
+          keyword = "heritage";
+        } else if (queryLower.includes("food") || queryLower.includes("culinary") || queryLower.includes("dish") || queryLower.includes("cuisine") || queryLower.includes("eat") || queryLower.includes("specialty") || queryLower.includes("sweet") || queryLower.includes("snack")) {
+          keyword = "culinary";
+        }
+        
+        if (keyword) {
+          const categoryAssets = tourismAssets.filter(a => a.category === keyword).slice(0, 3 - matchedAssets.length);
+          matchedAssets.push(...categoryAssets);
+        }
+      }
+    }
+
     // Build RAG Context block
     let ragContext = "";
     if (matchedDestinations.length > 0) {
@@ -170,6 +211,14 @@ export default async function handler(req, res) {
         ragContext += `- **${d.name}** (District: ${d.district}, Category: ${d.category}): ${d.description}. Key Attractions: ${d.attractions?.join(", ") || "None"}. Recommended duration: ${d.recommendedDays || 2} days. Travel insight: ${d.whyVisit || ""}\n`;
       });
       ragContext += "\nUse the details above as the source of truth for your suggestions and cost estimations.\n";
+    }
+
+    if (matchedAssets.length > 0) {
+      ragContext += "\nHere is verified information about specific Tamil Nadu tourism assets (beaches, eco-spots, heritage sites, regional cuisines) from official brochures:\n";
+      matchedAssets.forEach((a) => {
+        ragContext += `- **${a.title}** (${a.location || "Tamil Nadu"}, Category: ${a.category}): USP - ${a.usp}. Details: ${a.description.substring(0, 300)}...\n`;
+      });
+      ragContext += "\nUse these details to make your food, sightseeing, or travel suggestions highly accurate and descriptive.\n";
     }
 
     const systemPromptText = `
@@ -192,6 +241,13 @@ Rules:
 - Suggest buses (TNSTC) or trains (IRCTC) instead of private cabs to keep costs low
 - Prefer Tamil Nadu locations first
 - Give day-wise plans for itineraries
+- Ensure travel times, routes, and transport modes are realistic:
+  * Trains from Chennai to Mettupalayam (Nilgiri Express) or Coimbatore are overnight trains taking 8-9 hours (e.g., depart 9:05 PM, arrive 6:15 AM). There are no day trains that take only 4 hours.
+  * The Nilgiri Mountain Railway (Toy Train) from Mettupalayam to Ooty runs ONLY ONCE daily, departing at 07:10 AM and arriving at 11:55 AM. The return train departs Ooty at 2:00 PM. It does not run in the afternoon at 1:30 PM.
+  * Suggest frequent local TNSTC buses (approx. ₹80, 2 hours) from Mettupalayam/Coimbatore to Ooty as a primary or fallback option.
+  * Chennai to Hogenakkal: The best route from Chennai is to take a train to Salem Junction (approx. 5.5 hours, Sleeper Class ₹240/person) and then take a local TNSTC bus from Salem Central Bus Stand to Hogenakkal Falls (approx. ₹80, 2.5 hours). Keep travel times realistic (approx. 8 hours total transit).
+  * Train Seating Classes: For budget trips (e.g., under ₹5000), NEVER suggest 1st AC (1A) or 2nd AC (2A) as they are too expensive. Always suggest Sleeper Class (SL) or Second Seating (2S) which cost ₹150–₹350 per ticket.
+  * Travel Speeds & Durations: A distance of 300–450 km (e.g., Chennai to Salem, Madurai, or Trichy) takes 5 to 7 hours by express train or 6 to 8 hours by bus. Do not claim day trains can cover these distances in 3–4 hours.
 ${ragContext}
 `;
 
