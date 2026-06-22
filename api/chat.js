@@ -31,6 +31,13 @@ const TRAVEL_KEYWORDS = [
   "weekend", "getaway", "journey", "destination", "attractions", "tamil nadu", "sight", "scenic", "monument", "sanctuary"
 ];
 
+// Global list of common travel-related phrases
+const TRAVEL_PHRASES = [
+  "where can i go", "where should i go", "where to go", "places to go", 
+  "where can we go", "where should we go", "places to visit", "things to do",
+  "suggest a", "recommend a", "how to go", "how to reach", "budget trip"
+];
+
 // Global list of non-travel indicators to detect out-of-scope requests
 const NON_TRAVEL_INDICATORS = [
   "python", "javascript", "coding", "programming", "react", "html", "css", "sql", "function", "compile", "database", 
@@ -158,21 +165,34 @@ function detectIntent(query, destinations) {
       travelScore += 1;
     }
   });
+
+  TRAVEL_PHRASES.forEach(phrase => {
+    if (queryLower.includes(phrase)) {
+      travelScore += 5;
+    }
+  });
   
   NON_TRAVEL_INDICATORS.forEach(nti => {
     if (queryLower.includes(nti)) {
       nonTravelScore += 5;
     }
   });
-  
-  // Strict check: if no travel words and not a greeting, it's out of scope
-  if (travelScore === 0 || (nonTravelScore > 0 && travelScore < 3)) {
-    return { intent: "OUT_OF_SCOPE", params: {} };
-  }
-  
+
   const params = extractParameters(queryLower, destinations);
   if (matchedDest) {
     params.destination = matchedDest.name;
+  }
+
+  // Boost travel score if key parameters are present
+  if (params.budget) travelScore += 5;
+  if (params.days) travelScore += 5;
+  if (params.destination) travelScore += 5;
+  if (params.source) travelScore += 5;
+  if (params.category) travelScore += 3;
+  
+  // Strict check: if no travel words/phrases/parameters and not a greeting, it's out of scope
+  if (travelScore === 0 || (nonTravelScore > 0 && travelScore < 3)) {
+    return { intent: "OUT_OF_SCOPE", params: {} };
   }
   
   let intent = "GENERAL_CHAT";
