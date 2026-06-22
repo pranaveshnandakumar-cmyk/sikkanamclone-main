@@ -72,11 +72,28 @@ function extractParameters(query, destinations) {
     params.audience = "youngsters";
   }
   
-  // 3. Extract destination
-  for (const dest of destinations) {
-    if (query.includes(dest.name.toLowerCase())) {
-      params.destination = dest.name;
-      break;
+  // 3. Extract route source/destination
+  const routeMatch = query.match(/(?:from|starting at|start from|starting in)\s+([a-zA-Z]+)\s+(?:to|towards)\s+([a-zA-Z]+)/i);
+  if (routeMatch) {
+    params.source = routeMatch[1].trim();
+    params.destination = routeMatch[2].trim();
+  } else {
+    const sourceMatch = query.match(/(?:from|starting at|start from|starting in)\s+([a-zA-Z]+)/i);
+    if (sourceMatch) {
+      params.source = sourceMatch[1].trim();
+    }
+  }
+
+  // 3.5 Extract destination if not already set
+  if (!params.destination) {
+    for (const dest of destinations) {
+      if (query.includes(dest.name.toLowerCase())) {
+        if (params.source && params.source.toLowerCase() === dest.name.toLowerCase()) {
+          continue;
+        }
+        params.destination = dest.name;
+        break;
+      }
     }
   }
   
@@ -100,13 +117,6 @@ function extractParameters(query, destinations) {
     params.style = "standard";
   }
 
-  // 6. Extract route source/destination
-  const routeMatch = query.match(/(?:from|starting at|start from)\s+([a-zA-Z\s]+)\s+(?:to|towards)\s+([a-zA-Z\s]+)/i);
-  if (routeMatch) {
-    params.source = routeMatch[1].trim();
-    params.destination = routeMatch[2].trim();
-  }
-
   return params;
 }
 
@@ -118,12 +128,22 @@ function detectIntent(query, destinations) {
     return { intent: "GENERAL_CHAT", params: { isGreeting: true } };
   }
   
+  // Extract source first to prevent it from matching as target destination
+  let sourceCity = null;
+  const sourceMatch = queryLower.match(/(?:from|starting at|start from|starting in)\s+([a-zA-Z]+)/i);
+  if (sourceMatch) {
+    sourceCity = sourceMatch[1].trim().toLowerCase();
+  }
+
   let travelScore = 0;
   let nonTravelScore = 0;
   let matchedDest = null;
   
   // Destination and District matching
   for (const dest of destinations) {
+    if (sourceCity && sourceCity === dest.name.toLowerCase()) {
+      continue;
+    }
     if (queryLower.includes(dest.name.toLowerCase())) {
       travelScore += 5;
       matchedDest = dest;
@@ -177,11 +197,26 @@ function detectIntent(query, destinations) {
   ) {
     intent = "HOTEL_SEARCH";
   } else if (
+    queryLower.includes("plan") || 
+    queryLower.includes("itinerary") || 
+    queryLower.includes("trip") || 
+    queryLower.includes("tour") || 
+    queryLower.includes("where can i go") ||
+    queryLower.includes("where should i go") ||
+    queryLower.includes("where to go") ||
+    queryLower.includes("places to go") ||
+    queryLower.includes("suggest") ||
+    queryLower.includes("recommend") ||
+    params.days
+  ) {
+    intent = "TRIP_PLANNER";
+  } else if (
     queryLower.includes("budget") || 
     queryLower.includes("cost") || 
     queryLower.includes("price") || 
     queryLower.includes("expense") || 
-    queryLower.includes("how much")
+    queryLower.includes("how much") ||
+    params.budget
   ) {
     intent = "BUDGET_QUERY";
   } else if (
@@ -192,14 +227,6 @@ function detectIntent(query, destinations) {
     (matchedDest && (queryLower.includes("about") || queryLower.includes("info") || queryLower.includes("detail")))
   ) {
     intent = "DESTINATION_INFO";
-  } else if (
-    queryLower.includes("plan") || 
-    queryLower.includes("itinerary") || 
-    queryLower.includes("trip") || 
-    queryLower.includes("tour") || 
-    params.days
-  ) {
-    intent = "TRIP_PLANNER";
   }
   
   return { intent, params };
@@ -257,21 +284,42 @@ function generateLocalFallbackResponse(intent, params, destinations, tourismAsse
         filtered = destinations.filter(d => d.category === "hill" || d.category === "beach");
       }
       
-      const affordable = filtered.filter(d => {
-        const cost = (d.recommendedDays || 2) * 1600;
-        return cost <= params.budget;
-      }).slice(0, 3);
+      const affordable = [];
+      const dailyCost = 1500;
       
-      if (affordable.length > 0) {
-        reply += `Here are budget-friendly recommendations fitting your **₹${params.budget}** budget ${params.audience === "youngsters" ? "for youngsters (beaches & hill stations)" : ""}:\n\n`;
-        affordable.forEach(d => {
-          const cost = (d.recommendedDays || 2) * 1600;
-          reply += `#### 📍 ${d.name} (${d.category === "hill" ? "Hill Station" : "Beach"})\n`;
-          reply += `* **Highlight**: ${d.whyVisit || d.description}\n`;
-          reply += `* **Estimated Cost**: ~₹${cost} for ${d.recommendedDays || 2} days\n`;
+      for (const d of filtered) {
+        let targetDays = Math.min(d.recommendedDays || 2, Math.floor(params.budget / dailyCost));
+        if (targetDays === 0 && params.budget >= 1000) {
+          targetDays = 1;
+        }
+        
+        if (targetDays > 0) {
+          const cost = targetDays * dailyCost;
+          affordable.push({
+            name: d.name,
+            fullName: d.fullName || d.name,
+            category: d.category,
+            whyVisit: d.whyVisit || d.description,
+            attractions: d.attractions,
+            days: targetDays,
+            cost: cost
+          });
+        }
+      }
+      
+      // Sort so that destinations where we can afford more days (or recommended days) appear first
+      affordable.sort((a, b) => b.days - a.days);
+      const topAffordable = affordable.slice(0, 3);
+      
+      if (topAffordable.length > 0) {
+        reply += `Here are budget-friendly recommendations fitting your **₹${params.budget}** budget ${params.source ? `starting from **${params.source.charAt(0).toUpperCase() + params.source.slice(1)}**` : ""} ${params.audience === "youngsters" ? "for youngsters (beaches & hill stations)" : ""}:\n\n`;
+        topAffordable.forEach(d => {
+          reply += `#### 📍 ${d.name} (${d.category === "hill" ? "Hill Station" : "Beach" || d.category})\n`;
+          reply += `* **Highlight**: ${d.whyVisit}\n`;
+          reply += `* **Estimated Cost**: ~₹${d.cost} for a **${d.days}-day trip**\n`;
           reply += `* **Must-See**: ${d.attractions?.slice(0, 3).join(", ") || ""}\n\n`;
         });
-        reply += `*Tip: Ask me to plan a trip to a specific place (e.g., "Plan a trip to ${affordable[0].name}") for a day-wise plan.*`;
+        reply += `*Tip: Ask me to plan a trip to a specific place (e.g., "Plan a trip to ${topAffordable[0].name}") for a day-wise plan.*`;
         return reply;
       }
     }
