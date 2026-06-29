@@ -32,6 +32,7 @@ interface TransportEstimate {
   duration: string;
   cost: string;
   colorClass: string;
+  frequency?: string;
 }
 
 export default function Maps() {
@@ -129,9 +130,17 @@ export default function Maps() {
           );
           setRouteGeometry(coords);
 
-          // Get precise distance (no assumptions/approximations)
+           // Get precise distance (no assumptions/approximations)
           const distanceInKm = route.distance / 1000;
-          const durationMins = Math.round(route.duration / 60);
+
+          // Apply Global Traffic & Terrain Scale Factor
+          const destinationLower = destination.name.toLowerCase();
+          const isHillStation = ["ooty", "kodaikanal", "kodai", "yercaud", "valparai", "coonoor", "kolli hills"].some(
+            (hill) => destinationLower.includes(hill)
+          );
+          const multiplier = isHillStation ? 1.40 : 1.25;
+          const durationMins = Math.round((route.duration / 60) * multiplier);
+
           const hours = Math.floor(durationMins / 60);
           const mins = durationMins % 60;
           const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
@@ -396,7 +405,7 @@ export default function Maps() {
   };
 
   // Calculate local budget transport estimates based on exact route distance
-  const getTransitEstimates = (distanceKm: number): TransportEstimate[] => {
+  const getTransitEstimates = (distanceKm: number, customCabDuration?: string): TransportEstimate[] => {
     const trainSpeed = 55; // km/h
     const trainRate = 0.6; // ₹ per km
     const trainHours = Math.max(1, Math.round(distanceKm / trainSpeed));
@@ -412,6 +421,31 @@ export default function Maps() {
     const cabHours = Math.max(1, Math.round(distanceKm / cabSpeed));
     const cabCost = Math.max(600, Math.round(distanceKm * cabRate));
 
+    // Dynamic Bus frequency
+    let busFrequency = "Hourly service (Inter-city)";
+    if (distanceKm <= 60) {
+      busFrequency = "Every 15–30 mins (Frequent)";
+    } else if (distanceKm <= 180) {
+      busFrequency = "Every 45–60 mins";
+    } else {
+      busFrequency = "3–6 departures/day";
+    }
+
+    // Dynamic Train frequency/timings
+    const destName = destination?.name.toLowerCase() || "";
+    const isHillStationNoDirectRail = ["ooty", "kodaikanal", "kodai", "yercaud", "valparai", "coonoor", "kolli hills"].some(
+      (hill) => destName.includes(hill)
+    );
+
+    let trainFrequency = "2–4 trains/day (Exp/SF)";
+    if (isHillStationNoDirectRail) {
+      trainFrequency = "No direct route (Requires connecting station)";
+    } else if (distanceKm <= 160) {
+      trainFrequency = "1–2 trains/day (Local/Pass)";
+    } else if (distanceKm > 350) {
+      trainFrequency = "1–3 trains/day (Overnight/Exp)";
+    }
+
     return [
       {
         mode: "Express Train",
@@ -420,6 +454,7 @@ export default function Maps() {
         duration: `${trainHours} hrs`,
         cost: `₹${trainCost.toLocaleString("en-IN")}`,
         colorClass: "bg-emerald-50/50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/10",
+        frequency: trainFrequency,
       },
       {
         mode: "TNSTC Bus",
@@ -428,19 +463,21 @@ export default function Maps() {
         duration: `${busHours} hrs`,
         cost: `₹${busCost.toLocaleString("en-IN")}`,
         colorClass: "bg-amber-50/50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/10",
+        frequency: busFrequency,
       },
       {
         mode: "Budget Cab",
         emoji: "🚗",
         icon: Car,
-        duration: `${cabHours} hrs`,
+        duration: customCabDuration || `${cabHours} hrs`,
         cost: `₹${cabCost.toLocaleString("en-IN")}`,
         colorClass: "bg-blue-50/50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/10",
+        frequency: "Available 24/7 on demand",
       },
     ];
   };
 
-  const transitEstimates = routeInfo ? getTransitEstimates(routeInfo.rawDistanceKm) : [];
+  const transitEstimates = routeInfo ? getTransitEstimates(routeInfo.rawDistanceKm, routeInfo.duration) : [];
 
   const stripPrefix = (name: string) => name.replace(/^[^\s]+\s/, "");
   const isSourceDirty = !source || (sourceInput !== "Current Location" && sourceInput !== stripPrefix(source.name));
@@ -690,7 +727,7 @@ export default function Maps() {
                               {item.mode}
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
-                              Average journey duration
+                              {item.frequency || "Average journey duration"}
                             </p>
                           </div>
                         </div>
@@ -913,6 +950,11 @@ export default function Maps() {
                     <span className="text-lg">{item.emoji}</span>
                     <span className="text-[10px] font-bold text-foreground truncate">{item.mode}</span>
                   </div>
+                  {item.frequency && (
+                    <p className="text-[8px] text-muted-foreground mt-1 truncate leading-none" title={item.frequency}>
+                      {item.frequency}
+                    </p>
+                  )}
                   <div className="mt-2 text-left">
                     <p className="text-xs font-extrabold text-foreground">{item.cost}</p>
                     <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{item.duration}</p>

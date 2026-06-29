@@ -1355,10 +1355,20 @@ export async function getRoadDistanceAndStatus(
   fromLat: number,
   fromLng: number,
   toLat: number,
-  toLng: number
+  toLng: number,
+  destinationName?: string
 ): Promise<RouteIntelligence> {
+  let trafficFactor = 1.25;
+  if (destinationName) {
+    const destinationLower = destinationName.toLowerCase();
+    const isHillStation = ["ooty", "kodaikanal", "kodai", "yercaud", "valparai", "coonoor", "kolli hills"].some(
+      (hill) => destinationLower.includes(hill)
+    );
+    trafficFactor = isHillStation ? 1.40 : 1.25;
+  }
+
   const fallbackDist = Math.round(getDistance(fromLat, fromLng, toLat, toLng) * 1.25);
-  const fallbackDurationMin = Math.round((fallbackDist / 45) * 60);
+  const fallbackDurationMin = Math.round((fallbackDist / 45) * 60 * trafficFactor);
   const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
   try {
     const res = await fetch(url);
@@ -1366,7 +1376,7 @@ export async function getRoadDistanceAndStatus(
       const data = await res.json();
       if (data.code === "Ok" && data.routes && data.routes[0]) {
         const roadDist = Math.round(data.routes[0].distance / 1000);
-        const durationMin = Math.round(data.routes[0].duration / 60);
+        const durationMin = Math.round((data.routes[0].duration / 60) * trafficFactor);
         if (roadDist > 0) {
           return {
             roadDistanceKm: roadDist,
@@ -1398,7 +1408,8 @@ async function calculateRoute(source: string, destination: string, style: Travel
     srcDest.lat,
     srcDest.lng,
     dstDest.lat,
-    dstDest.lng
+    dstDest.lng,
+    dstDest.name
   );
   const distance = routeIntel.roadDistanceKm;
   const gateway = DESTINATION_GATEWAYS[destination];

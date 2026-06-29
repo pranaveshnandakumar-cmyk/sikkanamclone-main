@@ -302,9 +302,18 @@ function pickBestRoute(options, style) {
   return cheapest.legs;
 }
 
-async function getRoadDistanceAndStatus(fromLat, fromLng, toLat, toLng) {
+async function getRoadDistanceAndStatus(fromLat, fromLng, toLat, toLng, destinationName) {
+  let trafficFactor = 1.25;
+  if (destinationName) {
+    const destinationLower = destinationName.toLowerCase();
+    const isHillStation = ["ooty", "kodaikanal", "kodai", "yercaud", "valparai", "coonoor", "kolli hills"].some(
+      (hill) => destinationLower.includes(hill)
+    );
+    trafficFactor = isHillStation ? 1.40 : 1.25;
+  }
+
   const fallbackDist = Math.round(getDistance(fromLat, fromLng, toLat, toLng) * 1.25);
-  const fallbackDurationMin = Math.round((fallbackDist / 45) * 60);
+  const fallbackDurationMin = Math.round((fallbackDist / 45) * 60 * trafficFactor);
   const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
   try {
     const res = await fetch(url);
@@ -312,7 +321,7 @@ async function getRoadDistanceAndStatus(fromLat, fromLng, toLat, toLng) {
       const data = await res.json();
       if (data.code === "Ok" && data.routes && data.routes[0]) {
         const roadDist = Math.round(data.routes[0].distance / 1000);
-        const durationMin = Math.round(data.routes[0].duration / 60);
+        const durationMin = Math.round((data.routes[0].duration / 60) * trafficFactor);
         if (roadDist > 0) {
           return {
             roadDistanceKm: roadDist,
@@ -335,7 +344,7 @@ async function getRoadDistanceAndStatus(fromLat, fromLng, toLat, toLng) {
 }
 
 async function calculateRoute(srcDest, dstDest, style) {
-  const routeIntel = await getRoadDistanceAndStatus(srcDest.lat, srcDest.lng, dstDest.lat, dstDest.lng);
+  const routeIntel = await getRoadDistanceAndStatus(srcDest.lat, srcDest.lng, dstDest.lat, dstDest.lng, dstDest.name);
   const distance = routeIntel.roadDistanceKm;
   const gateway = DESTINATION_GATEWAYS[dstDest.id];
   const options = [buildDirectBusRoute(srcDest.name, dstDest.name, distance, routeIntel)];
