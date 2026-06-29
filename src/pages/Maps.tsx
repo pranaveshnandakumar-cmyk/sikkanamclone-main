@@ -115,9 +115,17 @@ export default function Maps() {
       setIsLoadingRoute(true);
       setErrorMsg("");
       try {
-        const response = await fetch(
-          `https://router.project-osrm.org/route/v1/driving/${source.lng},${source.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`
-        );
+        let routeUrl = `https://router.project-osrm.org/route/v1/driving/${source.lng},${source.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+        
+        // Ensure routes from Northern Tamil Nadu (Chennai/etc.) to Ooty/Coonoor go via Salem to stay within the state and avoid Bengaluru detours
+        const sourceLat = source.lat;
+        const destLower = destination.name.toLowerCase();
+        const isTargetNilgiris = destLower.includes("ooty") || destLower.includes("coonoor");
+        if (sourceLat > 12.5 && isTargetNilgiris) {
+          routeUrl = `https://router.project-osrm.org/route/v1/driving/${source.lng},${source.lat};78.146,11.664;${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+        }
+
+        const response = await fetch(routeUrl);
         if (!response.ok) {
           throw new Error("Failed to reach OSRM routing server.");
         }

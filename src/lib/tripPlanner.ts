@@ -1369,7 +1369,15 @@ export async function getRoadDistanceAndStatus(
 
   const fallbackDist = Math.round(getDistance(fromLat, fromLng, toLat, toLng) * 1.25);
   const fallbackDurationMin = Math.round((fallbackDist / 45) * 60 * trafficFactor);
-  const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+  
+  let url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+  if (destinationName) {
+    const destLower = destinationName.toLowerCase();
+    const isTargetNilgiris = destLower.includes("ooty") || destLower.includes("coonoor");
+    if (fromLat > 12.5 && isTargetNilgiris) {
+      url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};78.146,11.664;${toLng},${toLat}?overview=false`;
+    }
+  }
   try {
     const res = await fetch(url);
     if (res.ok) {
