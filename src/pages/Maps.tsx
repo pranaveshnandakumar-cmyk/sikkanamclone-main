@@ -35,6 +35,18 @@ interface TransportEstimate {
   frequency?: string;
 }
 
+const LAST_MILE_CONNECTIONS: Record<string, { lastMileKm: number, mode: string, duration: string, cost: number }> = {
+  "Mettupalayam": { lastMileKm: 50, mode: "Bus/Toy Train", duration: "2h 30m", cost: 100 },
+  "Dindigul Junction": { lastMileKm: 90, mode: "Bus", duration: "3h 0m", cost: 120 },
+  "Salem Junction": { lastMileKm: 30, mode: "Bus", duration: "1h 0m", cost: 40 },
+  "Chengalpattu Junction": { lastMileKm: 30, mode: "Bus", duration: "1h 0m", cost: 45 },
+  "Coimbatore Junction": { lastMileKm: 100, mode: "Bus", duration: "3h 30m", cost: 130 },
+  "Madurai Junction": { lastMileKm: 60, mode: "Bus", duration: "1h 45m", cost: 80 },
+  "Tirunelveli Junction": { lastMileKm: 50, mode: "Bus", duration: "1h 30m", cost: 70 },
+  "Thoothukudi": { lastMileKm: 40, mode: "Bus", duration: "1h 15m", cost: 60 },
+  "Nagercoil Junction": { lastMileKm: 40, mode: "Bus", duration: "1h 15m", cost: 60 },
+};
+
 export default function Maps() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -115,14 +127,15 @@ export default function Maps() {
       setIsLoadingRoute(true);
       setErrorMsg("");
       try {
-        let routeUrl = `https://router.project-osrm.org/route/v1/driving/${source.lng},${source.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+        let routeUrl = `https://router.project-osrm.org/route/v1/car/${source.lng},${source.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
         
-        // Ensure routes from Northern Tamil Nadu (Chennai/etc.) to Ooty/Coonoor go via Salem to stay within the state and avoid Bengaluru detours
         const sourceLat = source.lat;
         const destLower = destination.name.toLowerCase();
         const isTargetNilgiris = destLower.includes("ooty") || destLower.includes("coonoor");
+
         if (sourceLat > 12.5 && isTargetNilgiris) {
-          routeUrl = `https://router.project-osrm.org/route/v1/driving/${source.lng},${source.lat};78.146,11.664;${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+          // Route via Salem to avoid Bengaluru/Mysuru detours
+          routeUrl = `https://router.project-osrm.org/route/v1/car/${source.lng},${source.lat};78.146,11.664;${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
         }
 
         const response = await fetch(routeUrl);
@@ -468,11 +481,33 @@ export default function Maps() {
     let trainCostStr = `₹${trainCost.toLocaleString("en-IN")}`;
 
     if (!hasRailAccess) {
-      trainDurationStr = "N/A";
-      trainCostStr = "N/A";
-      trainFrequency = dbDest 
-        ? (nearestStation ? `No direct rail (Connect at ${nearestStation})` : "No direct rail access")
-        : "No direct rail (Custom Location)";
+      let connection = nearestStation ? LAST_MILE_CONNECTIONS[nearestStation] : null;
+      if (!connection && nearestStation) {
+        if (isHillStationNoDirectRail) {
+          connection = { lastMileKm: 50, mode: "Bus/Cab", duration: "2h 0m", cost: 100 };
+        } else if (dbDest?.category === "beach" || dbDest?.category === "temple") {
+          connection = { lastMileKm: 25, mode: "Bus/Auto", duration: "0h 45m", cost: 40 };
+        } else {
+          connection = { lastMileKm: 35, mode: "Bus", duration: "1h 15m", cost: 55 };
+        }
+      }
+
+      if (connection && nearestStation) {
+        const trainDist = Math.max(0, distanceKm - connection.lastMileKm);
+        const trainLegHours = Math.max(1, Math.round(trainDist / trainSpeed));
+        const trainLegCost = Math.max(65, Math.round(trainDist * trainRate));
+        const totalCost = trainLegCost + connection.cost;
+
+        trainDurationStr = `${trainLegHours}h + ${connection.duration}`;
+        trainCostStr = `₹${totalCost.toLocaleString("en-IN")}`;
+        trainFrequency = `Train to ${nearestStation}, then ${connection.mode}`;
+      } else {
+        trainDurationStr = "N/A";
+        trainCostStr = "N/A";
+        trainFrequency = dbDest 
+          ? (nearestStation ? `No direct rail (Connect at ${nearestStation})` : "No direct rail access")
+          : "No direct rail (Custom Location)";
+      }
     } else if (isHillStationNoDirectRail) {
       trainFrequency = "No direct route (Requires connecting station)";
     } else if (distanceKm <= 160) {

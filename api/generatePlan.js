@@ -315,12 +315,13 @@ async function getRoadDistanceAndStatus(fromLat, fromLng, toLat, toLng, destinat
   const fallbackDist = Math.round(getDistance(fromLat, fromLng, toLat, toLng) * 1.25);
   const fallbackDurationMin = Math.round((fallbackDist / 45) * 60 * trafficFactor);
   
-  let url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+  let url = `https://router.project-osrm.org/route/v1/car/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
   if (destinationName) {
     const destLower = destinationName.toLowerCase();
     const isTargetNilgiris = destLower.includes("ooty") || destLower.includes("coonoor");
+
     if (fromLat > 12.5 && isTargetNilgiris) {
-      url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};78.146,11.664;${toLng},${toLat}?overview=false`;
+      url = `https://router.project-osrm.org/route/v1/car/${fromLng},${fromLat};78.146,11.664;${toLng},${toLat}?overview=false`;
     }
   }
   try {
